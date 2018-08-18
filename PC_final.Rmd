@@ -1,0 +1,36 @@
+---
+title: "Final_BC"
+author: "Lin Zuo"
+date: "12/9/2017"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+pc_final = read.csv("pc_final.csv",header=T)
+pc_final$old_child =0
+pc_final$old_child[pc_final$old==1|pc_final$young==1]=1
+
+#anova_house attributes
+summary(aov(size_new ~ young, data=pc_final))
+summary(aov(size_new ~ young, data=pc_final))
+summary(aov(size_new ~ old, data=pc_final))
+summary(aov(size_new ~ old_child, data=pc_final))
+
+#anova_pc_qty
+summary(aov(pc_qty ~ size_new, data=pc_final))
+summary(aov(pc_qty ~ old, data=pc_final))
+summary(aov(pc_qty ~ young, data=pc_final))
+summary(aov(pc_qty ~ income_new, data=pc_final))
+summary(aov(pc_qty ~ old_child, data=pc_final))
+
+#new subset of data_no young no old
+pc_final_no_young_old = pc_final%>%filter(old_child==0)
+summary(aov(pc_qty ~ size_new, data=pc_final_no_young_old))
+summary(aov(pc_qty ~ income_new, data=pc_final_no_young_old))
+
+#new variable income_two
+pc_final_no_young_old$income_two=0
+pc_final_no_young_old$income_two[pc_final_no_young_old$income_new==3]=1
+summary(aov(pc_qty ~ income_two, data=pc_final_no_young_old))
+```

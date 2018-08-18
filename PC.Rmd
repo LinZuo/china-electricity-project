@@ -1,0 +1,299 @@
+---
+title: "BassConnections_1030"
+author: "Lin Zuo"
+date: "10/30/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+library(dplyr)
+library(ggplot2)
+# read in data set
+pc=read.csv("pc_analysis.csv", header=T)
+
+#basic statistical analysis
+var_list = combn(names(pc)[1:10],1,simplify=FALSE)
+for (i in 1:10){
+    p <- ggplot(data=pc) + 
+         geom_bar(aes_string(x=var_list[[i]][1])) +
+         theme_bw()
+  file_name = paste(names(pc)[i],"_distribution.png",sep="")
+  png(file_name)
+  print(p)
+  dev.off()
+    }
+
+#relationship between predictors and ownership of different types of pc
+pc_type_list = combn(names(pc)[1:5],1,simplify=FALSE)
+predictor_list = combn(names(pc)[6:10],1,simplify=FALSE)
+
+for (j in 1:5){
+  for (i in 1:5){
+    p <- ggplot(data=pc) + 
+         geom_point(aes_string(x=predictor_list[[i]][1],
+                             y=pc_type_list[[j]][1]),
+                    position ="jitter")
+  file_name = paste("pc_type_",j,"_",names(pc)[5+i],".png",sep="")
+  png(file_name)
+  print(p)
+  dev.off()
+    }
+}
+
+#color coded income ~ pc_total_qty
+ggplot(data = pc) + 
+  geom_point(mapping = aes(x = income, y = pc_total_qty), position = "jitter")
+ggplot(data = pc) + 
+  geom_point(mapping = aes(x = income, y = pc_total_qty, color = factor(old)), position = "jitter")
+ggplot(data = pc) + 
+  geom_point(mapping = aes(x = income, y = pc_total_qty, color = factor(young)), position = "jitter")
+ggplot(data = pc) + 
+  geom_point(mapping = aes(x = income, y = pc_total_qty, color = factor(edu)), position = "jitter")
+ggplot(data = pc) + 
+  geom_point(mapping = aes(x = income, y = pc_total_qty, color = factor(size)), position = "jitter")
+
+
+#ANOVA assumptions
+boxplot(pc$pc_total_qty ~ pc$income, ylab = "PC_total_qty", xlab = "Income")
+boxplot(pc$pc_total_qty ~ pc$edu, ylab = "PC_total_qty", xlab = "Edu")
+boxplot(pc$pc_total_qty ~ pc$old, ylab = "PC_total_qty", xlab = "Old")
+boxplot(pc$pc_total_qty ~ pc$young, ylab = "PC_total_qty", xlab = "Young")
+boxplot(pc$pc_total_qty ~ pc$size, ylab = "PC_total_qty", xlab = "Size")
+#one-way ANOVA
+income_anova = aov(pc_total_qty ~ income, data = pc) #hmmm
+edu_anova = aov(pc_total_qty ~ edu, data = pc) #hmmm
+old_anova = aov(pc_total_qty ~ old, data = pc) #not really
+young_anova = aov(pc_total_qty ~ young, data = pc) #not really
+size_anova = aov(pc_total_qty ~ size, data = pc) #not really
+#multiple regression
+reg = lm(pc_total_qty ~ income + edu + old + young + size, data = pc)
+reg2 = lm(pc_total_qty ~ edu + old + size + young, data = pc)
+anova(reg,reg2)
+
+
+setwd("~/Desktop")
+pc_new = read.csv("PC_master_dataset.csv", header=T)
+pc = pc_new%>%select(-surveyid,-pc_qty,-old,-young)
+#k-means
+##select number of cluster
+wss <- 0
+# For 1 to 15 cluster centers
+for (i in 1:15) {
+  km.out <- kmeans(pc, centers = i, nstart=20)
+  # Save total within sum of squares to wss variable
+  wss[i] <- km.out$tot.withinss
+}
+# Plot total within sum of squares vs. number of clusters
+plot(1:15, wss, type = "b", 
+     xlab = "Number of Clusters", 
+     ylab = "Within groups sum of squares")
+set.seed(1)
+for(i in 1:6) {
+  # Run kmeans() on pc with six clusters and one start
+  km.out <- kmeans(pc,6,nstart=1)
+}
+
+```
+
+
+```{r}
+pc.income <- pc%>%
+  group_by(income)%>%summarise(pc_num=mean(pc_total_qty))%>%
+  ggplot(aes(x=income,y=pc_num))+
+  geom_bar(stat="identity")+geom_text(aes(label=round(pc_num,2)))
+
+pc.edu <- pc%>%
+  group_by(edu)%>%summarise(pc_num=mean(pc_total_qty))%>%
+  ggplot(aes(x=edu,y=pc_num))+
+  geom_bar(stat="identity")+geom_text(aes(label=round(pc_num,2)))
+
+pc.young <- pc%>%
+  group_by(young)%>%summarise(pc_num=mean(pc_total_qty))%>%
+  ggplot(aes(x=young,y=pc_num))+
+  geom_bar(stat="identity")
+
+pc.old <- pc%>%
+  group_by(old)%>%summarise(pc_num=mean(pc_total_qty))%>%
+  ggplot(aes(x=old,y=pc_num))+
+  geom_bar(stat="identity")
+
+pc.size <- pc%>%
+  group_by(size)%>%summarise(pc_num=mean(pc_total_qty))%>%
+  ggplot(aes(x=size,y=pc_num))+
+  geom_bar(stat="identity")
+```
+
+```{r}
+
+##hierarchical clustering
+xsc=scale(pc) # scale/standardize the variables before hierarchical clustering
+
+dd1 = dist(xsc) # use Euclidean distance
+dd2 = dd=as.dist(1-cor(t(x))) # correlation-based distance
+dd = dd1 # choose the distance/dissimilarity measure
+
+# clustering for different types of linkage -----------------
+hc.complete=hclust(dd, method="complete")
+hc.average=hclust(dd, method="average")
+hc.single=hclust(dd, method="single")
+
+# plot the dendrograms together -------------
+par(mfrow=c(1,3))
+plot(hc.complete,main="Complete Linkage", xlab="", sub="", cex=.9)
+plot(hc.average, main="Average Linkage", xlab="", sub="", cex=.9)
+plot(hc.single, main="Single Linkage", xlab="", sub="", cex=.9)
+
+# decide where to "cut" the branch (e.g. cut at 2)
+hc.complete.out = cutree(hc.complete, 3)
+hc.average.out = cutree(hc.average, 4)
+hc.single.out = cutree(hc.single, 3)
+
+# plot the results (two-dimension) -----------
+plot(x, col=(hc.complete.out+1), main="Results with complete linkage", xlab="", ylab="", pch=20, cex=2)
+plot(x, col=(hc.average.out+1), main="Results with complete linkage", xlab="", ylab="", pch=20, cex=2)
+plot(x, col=(hc.single.out+1), main="Results with complete linkage", xlab="", ylab="", pch=20, cex=2)
+
+pc_new$hier=hc.average.out
+pc_new = pc_new%>%arrange(hier)
+
+# create new income categories
+n=nrow(pc_new)
+for (i in 1:n){
+  if (pc_new$income[i] ==1){
+    pc_new$income_new[i]=1
+  }
+}
+  
+for (i in 1:n){
+  if (pc_new$income[i] ==2 | pc_new$income[i] ==3 | pc_new$income[i] ==4 | pc_new$income[i] ==5 ){
+    pc_new$income_new[i]=2
+  }
+}
+
+  
+for (i in 1:n){
+  if (pc_new$income[i] ==6 | pc_new$income[i] ==7 | pc_new$income[i] ==8 | pc_new$income[i] ==9 ){
+    pc_new$income_new[i]=3
+  }
+}
+
+#create new household size categories
+for (i in 1:n){
+  if (pc_new$size[i] ==1 | pc_new$size[i] ==2){
+    size_new[i]=1
+  }
+}
+
+for (i in 1:n){
+  if (pc_new$size[i] ==3 | pc_new$size[i] ==4){
+    size_new[i]=2
+  }
+}
+
+for (i in 1:n){
+  if (pc_new$size[i]>4){
+    size_new[i]=3
+  }
+}
+
+pc_new$size_new = size_new
+
+pc_cluster_1 = pc_new%>%select(income_new,size_new)
+
+##hierarchical clustering
+xsc=scale(pc_cluster_1) # scale/standardize the variables before hierarchical clustering
+
+dd1 = dist(xsc) # use Euclidean distance
+dd2 = dd=as.dist(1-cor(t(x))) # correlation-based distance
+dd = dd1 # choose the distance/dissimilarity measure
+
+# clustering for different types of linkage -----------------
+hc.complete=hclust(dd, method="complete")
+hc.average=hclust(dd, method="average")
+hc.single=hclust(dd, method="single")
+
+# plot the dendrograms together -------------
+par(mfrow=c(1,3))
+plot(hc.complete,main="Complete Linkage", xlab="", sub="", cex=.9)
+plot(hc.average, main="Average Linkage", xlab="", sub="", cex=.9)
+plot(hc.single, main="Single Linkage", xlab="", sub="", cex=.9)
+
+# decide where to "cut" the branch (e.g. cut at 2)
+hc.complete.out = cutree(hc.complete, 3)
+hc.average.out = cutree(hc.average, 4)
+hc.single.out = cutree(hc.single, 3)
+
+pc_cluster_1$hier=hc.average.out
+pc_cluster_1=pc_cluster_1%>%arrange(hier)
+
+pc_cluster_2 = pc_new%>%select(income_new,size_new)
+
+##hierarchical clustering
+xsc=scale(pc_cluster_2) # scale/standardize the variables before hierarchical clustering
+
+dd1 = dist(xsc) # use Euclidean distance
+dd2 = dd=as.dist(1-cor(t(x))) # correlation-based distance
+dd = dd1 # choose the distance/dissimilarity measure
+
+# clustering for different types of linkage -----------------
+hc.complete=hclust(dd, method="complete")
+hc.average=hclust(dd, method="average")
+hc.single=hclust(dd, method="single")
+
+# plot the dendrograms together -------------
+par(mfrow=c(1,3))
+plot(hc.complete,main="Complete Linkage", xlab="", sub="", cex=.9)
+plot(hc.average, main="Average Linkage", xlab="", sub="", cex=.9)
+plot(hc.single, main="Single Linkage", xlab="", sub="", cex=.9)
+
+# decide where to "cut" the branch (e.g. cut at 2)
+hc.complete.out = cutree(hc.complete, 3)
+hc.average.out = cutree(hc.average, 4)
+hc.single.out = cutree(hc.single, 3)
+
+pc_cluster_2$hier=hc.average.out
+pc_cluster_2=pc_cluster_1%>%arrange(hier)
+
+pc_cluster_3 = pc_new%>%select(income_new,size_new,young,old)
+
+##hierarchical clustering
+xsc=scale(pc_cluster_3) # scale/standardize the variables before hierarchical clustering
+
+dd1 = dist(xsc) # use Euclidean distance
+dd2 = dd=as.dist(1-cor(t(x))) # correlation-based distance
+dd = dd1 # choose the distance/dissimilarity measure
+
+# clustering for different types of linkage -----------------
+hc.complete=hclust(dd, method="complete")
+hc.average=hclust(dd, method="average")
+hc.single=hclust(dd, method="single")
+
+# plot the dendrograms together -------------
+par(mfrow=c(1,3))
+plot(hc.complete,main="Complete Linkage", xlab="", sub="", cex=.9)
+plot(hc.average, main="Average Linkage", xlab="", sub="", cex=.9)
+plot(hc.single, main="Single Linkage", xlab="", sub="", cex=.9)
+
+# decide where to "cut" the branch (e.g. cut at 2)
+hc.complete.out = cutree(hc.complete, 3)
+hc.average.out = cutree(hc.average, 4)
+hc.single.out = cutree(hc.single, 3)
+
+pc_cluster_3$hier=hc.average.out
+pc_cluster_3=pc_cluster_3%>%arrange(hier)
+
+##create a new variable to indicate there's either a young or an old in the household
+ppl=rep(0,n)
+for (i in 1:n){
+  if (pc_new$old[i] ==1 | pc_new$young[i] ==1){
+    ppl[i]=1
+  }
+}
+pc_new$ppl=ppl
+```
+
+```{r}
+pc_new%>%filter(ppl==1)%>%filter(income_new==1)%>%filter(size_new==1)%>%select(pc_qty)%>%summary()
+
+```
